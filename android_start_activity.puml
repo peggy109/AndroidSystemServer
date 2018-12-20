@@ -1,0 +1,74 @@
+@startuml
+participant ActivityManagerService as AMS
+[-> ContextImpl : startActivity
+ContextImpl -> Instrumentation : execStartActivity
+Instrumentation ---> AMS : startActivity
+activate AMS
+	AMS -> AMS : startActivityAsUser
+	activate AMS
+		AMS -> ActivityStarter : startActivityMayWait
+		
+		activate ActivityStarter
+			ActivityStarter -> ActivityStarter : startActivityLocked
+			activate ActivityStarter
+				ActivityStarter -> ActivityStarter : startActivityUnchecked
+				activate ActivityStarter
+					ActivityStarter -> ActivityStarter : resumeTargetStackIfNeeded
+					ActivityStarter -> ActivityStarter : resumeFocusedStackTopActivityLocked
+					activate ActivityStarter
+						ActivityStarter -> ActivityStack : resumeTopActivityUncheckedLocked
+						activate ActivityStack
+							ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+							activate ActivityStack
+								ActivityStack -> ActivityStack : startPausingLocked
+								activate ActivityStack
+									ActivityStack -> ActivityStack : mResumedActivity
+									ActivityStack -> ActivityStack : mPausingActivity
+									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
+									activate ActivityThread.ApplicationThread
+										ActivityThread.ApplicationThread --> ActivityThread : handlePauseActivity
+										activate ActivityThread
+											ActivityThread -> ActivityThread : performPauseActivity
+											activate ActivityThread
+												ActivityThread -> ActivityThread : callCallActivityOnSaveInstanceState
+												activate ActivityThread
+													ActivityThread -> Instrumentation : callActivityOnSaveInstanceState
+												deactivate ActivityThread
+												ActivityThread -> ActivityThread : performPauseActivityIfNeeded
+												activate ActivityThread
+													ActivityThread -> Instrumentation : callActivityOnPause
+												deactivate ActivityThread
+											deactivate ActivityThread
+											ActivityThread ---> AMS : activityPaused 
+											activate AMS
+												AMS -> ActivityStack : activityPausedLocked
+												activate ActivityStack
+													ActivityStack -> ActivityStack.H : removeMessage(PAUSE_TIMEOUT_MSG)
+												deactivate ActivityStack
+											deactivate AMS
+										deactivate ActivityThread
+									deactivate ActivityThread.ApplicationThread
+									alt
+										ActivityStack -> ActivityStack : completePauseLocked
+									else
+										ActivityStack ---> ActivityStack.H : handleMessage(PAUSE_TIMEOUT_MSG)
+										ActivityStack.H -> ActivityStack : completePauseLocked
+									end
+								deactivate ActivityStack
+							deactivate ActivityStack
+						deactivate ActivityStack
+					deactivate ActivityStarter
+					ActivityStarter -> ActivityStack : startActivityLocked
+				deactivate ActivityStarter
+				ActivityStarter -> ActivityStarter : postStartActivityUncheckedProcessing
+			deactivate ActivityStarter
+		deactivate ActivityStarter
+
+	deactivate AMS
+deactivate AMS
+|||
+[-> AMS : startActivity
+AMS -> ActivityStarter : startActivityMayWait
+ActivityStarter -> ActivityStarter : startActivityLocked
+
+@enduml
