@@ -1,0 +1,12 @@
+@startuml
+participant PackageManager as PM
+participant ApplicationPackageManager
+participant PackageManagerService as PMS
+[-> PM : queryIntentActivities
+PM -> ApplicationPackageManager : queryIntentActivitiesAsUser
+ApplicationPackageManager ---> PMS : queryIntentActivities
+PMS ---> PMS : queryIntentActivitiesInternal
+PMS -> ActivityIntentResolver : queryIntent
+ActivityIntentResolver -> IntentResolver : queryIntent
+
+@enduml
