@@ -1,0 +1,14 @@
+@startuml
+[->Pm : pm list package
+Pm -> Pm : runList
+Pm -> Pm : runShellCommand
+Pm -> BinderProxy : shellCommand
+BinderProxy ---> Binder : onTransact
+Binder -> Binder : shellCommand
+Binder -> PackageManagerService : onShellCommand
+PackageManagerService -> PackageManagerShellCommand : onCommand
+PackageManagerShellCommand -> PackageManagerShellCommand : runList
+PackageManagerShellCommand -> PackageManagerShellCommand : runListPackages
+PackageManagerShellCommand -> PackageMaqnagerService : getInstalledPackages
+
+@enduml
