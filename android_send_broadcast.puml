@@ -1,0 +1,59 @@
+@startuml
+participant ContextImpl
+participant ActivityManagerService
+participant BroadcastQueue
+participant BroadcastHandler
+participant ApplicationThreadProxy
+participant ApplicationThreadNative
+participant ApplicationThread
+participant IIntentReceiver.Stub.Proxy
+participant IIntentReceiver.Stub
+participant Am.IntentReceiver
+
+[-> ContextImpl : sendBroadcast
+
+ContextImpl -->  ActivityManagerService : broadcastIntent
+ActivityManagerService -> ActivityManagerService : broadcastIntentLocked
+activate ActivityManagerService
+	ActivityManagerService -> BroadcastQueue : performReceiveLocked
+	activate BroadcastQueue
+		BroadcastQueue -> ApplicationThreadProxy : scheduleRegisteredReceiver
+		ApplicationThreadProxy --> ApplicationThreadNative : onTransact
+		ApplicationThreadNative -> ApplicationThread : scheduleRegisteredReceiver
+		ApplicationThread -> IIntentReceiver.Stub.Proxy : performReceive
+		IIntentReceiver.Stub.Proxy --> IIntentReceiver.Stub : onTransact
+		alt
+		IIntentReceiver.Stub -> Am.IntentReceiver : performReceive
+		else
+		IIntentReceiver.Stub -> LoadedApk.ReceiverDispatcher.InnerReceiver : performReceive
+		LoadedApk.ReceiverDispatcher.InnerReceiver -> LoadedApk.ReceiverDispatcher : performReceive
+		LoadedApk.ReceiverDispatcher ---> LoadedApk.ReceiverDispatcher.Args : run
+		LoadedApk.ReceiverDispatcher.Args -> BroadcastReceiver : onReceive
+		end
+	deactivate BroadcastQueue
+	|||
+	ActivityManagerService -> BroadcastQueue : enqueueParallelBroadcastLocked
+	activate BroadcastQueue
+		BroadcastQueue -> BroadcastQueue : mParallelBroadcasts.add
+	deactivate BroadcastQueue
+	ActivityManagerService -> BroadcastQueue : scheduleBroadcastsLocked
+	activate BroadcastQueue
+		BroadcastQueue --> BroadcastHandler : handleMessage
+		activate BroadcastHandler
+			BroadcastHandler -> BroadcastQueue : processNextBroadcast
+			activate BroadcastQueue
+				BroadcastQueue -> BroadcastQueue : deliverToRegisteredReceiveLocked
+				activate BroadcastQueue
+					BroadcastQueue -> BroadcastQueue : performReceiveLocked
+				deactivate BroadcastQueue
+			deactivate BroadcastQueue
+		deactivate BroadcastHandler
+	deactivate BroadcastQueue
+	|||
+	ActivityManagerService -> BroadcastQueue : enqueueOrderedBroadcastLocked
+	BroadcastQueue -> BroadcastQueue : mOrderedBroadcasts.add
+
+
+deactivate ActivityManagerService
+
+@enduml
