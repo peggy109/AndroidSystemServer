@@ -1,5 +1,15 @@
 @startuml
+participant ContextImpl
+participant Instrumentation
+participant Activity
+participant ActivityThread
+participant ActivityThread.ApplicationThread
 participant ActivityManagerService as AMS
+participant ActivityStarter
+participant ActivityStack
+participant ActivityStackSupervisor
+participant ActivityStack.H
+
 [-> ContextImpl : startActivity
 ContextImpl -> Instrumentation : execStartActivity
 Instrumentation ---> AMS : startActivity
@@ -7,7 +17,6 @@ activate AMS
 	AMS -> AMS : startActivityAsUser
 	activate AMS
 		AMS -> ActivityStarter : startActivityMayWait
-		
 		activate ActivityStarter
 			ActivityStarter -> ActivityStarter : startActivityLocked
 			activate ActivityStarter
@@ -44,15 +53,75 @@ activate AMS
 												AMS -> ActivityStack : activityPausedLocked
 												activate ActivityStack
 													ActivityStack -> ActivityStack.H : removeMessage(PAUSE_TIMEOUT_MSG)
+													ActivityStack -> ActivityStack : completePauseLocked
+													note right of ActivityStack : resumeNext : true
+													activate ActivityStack
+														ActivityStack -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
+														activate ActivityStackSupervisor
+															ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
+															activate ActivityStack
+																ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+																activate ActivityStack
+																alt
+																	ActivityStack ---> ActivityThread.ApplicationThread : scheduleResumeActivity
+																	ActivityThread.ApplicationThread ---> ActivityThread :handleResumeActivity
+																	activate ActivityThread
+																		ActivityThread -> ActivityThread : performResumeActivity
+																		activate ActivityThread
+																			ActivityThread -> Activity : performResume
+																		deactivate ActivityThread
+																		ActivityThread -> AMS : activityResumed
+																	deactivate ActivityThread
+																else bingo!
+																	ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
+																	ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+																	ActivityStackSupervisor -> ActivityThread : scheduleLaunchActivity
+																	ActivityThread ---> ActivityThread : handleLaunchActivity
+																	activate ActivityThread
+																		ActivityThread -> ActivityThread : performLaunchActivity
+																		activate ActivityThread
+																		    ActivityThread -> Instrumentation : newActivity
+																		    ActivityThread -> Activity : attach
+																		    ActivityThread -> Instrumentation : callActivityOnCreate
+																		    ActivityThread -> Activity : performStart
+																		    activate Activity
+																		        Activity -> Instrumentation : callActivityOnStart
+																		    deactivate Activity
+																		    ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
+																		deactivate ActivityThread
+																		ActivityThread -> ActivityThread : handleResumeActivity
+																		activate ActivityThread
+																		    ActivityThread -> ActivityThread : performResumeActivity
+																		    activate ActivityThread
+																		        ActivityThread -> Activity : performResume
+																		        activate Activity
+																		            Activity -> Instrumentation : callActivityOnResume
+																		        deactivate Activity
+																		    deactivate ActivityThread
+                                                                            ActivityThread ---> AMS : activityResumed
+																		deactivate ActivityThread
+																	deactivate ActivityThread
+																end
+																deactivate ActivityStack
+															deactivate ActivityStack
+														deactivate ActivityStackSupervisor
+														ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
+														activate ActivityStackSupervisor
+														ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
+														deactivate ActivityStackSupervisor
+													deactivate ActivityStack
 												deactivate ActivityStack
 											deactivate AMS
 										deactivate ActivityThread
 									deactivate ActivityThread.ApplicationThread
 									alt
 										ActivityStack -> ActivityStack : completePauseLocked
+										note right of ActivityStack : resumeNext : false
 									else
 										ActivityStack ---> ActivityStack.H : handleMessage(PAUSE_TIMEOUT_MSG)
-										ActivityStack.H -> ActivityStack : completePauseLocked
+										ActivityStack.H -> ActivityStack : activityPausedLocked
+										ActivityStack -> ActivityStack : completePauseLocked
+										note right of ActivityStack : resumeNext : true
 									end
 								deactivate ActivityStack
 							deactivate ActivityStack
