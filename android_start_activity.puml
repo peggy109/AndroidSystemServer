@@ -74,33 +74,38 @@ activate AMS
 																	deactivate ActivityThread
 																else bingo!
 																	ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
-																	ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
-																	ActivityStackSupervisor -> ActivityThread : scheduleLaunchActivity
-																	ActivityThread ---> ActivityThread : handleLaunchActivity
-																	activate ActivityThread
-																		ActivityThread -> ActivityThread : performLaunchActivity
-																		activate ActivityThread
-																		    ActivityThread -> Instrumentation : newActivity
-																		    ActivityThread -> Activity : attach
-																		    ActivityThread -> Instrumentation : callActivityOnCreate
-																		    ActivityThread -> Activity : performStart
-																		    activate Activity
-																		        Activity -> Instrumentation : callActivityOnStart
-																		    deactivate Activity
-																		    ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
-																		deactivate ActivityThread
-																		ActivityThread -> ActivityThread : handleResumeActivity
-																		activate ActivityThread
-																		    ActivityThread -> ActivityThread : performResumeActivity
-																		    activate ActivityThread
-																		        ActivityThread -> Activity : performResume
-																		        activate Activity
-																		            Activity -> Instrumentation : callActivityOnResume
-																		        deactivate Activity
-																		    deactivate ActivityThread
-                                                                            ActivityThread ---> AMS : activityResumed
-																		deactivate ActivityThread
-																	deactivate ActivityThread
+																	activate ActivityStackSupervisor
+                                                                        ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+                                                                        activate ActivityStackSupervisor
+                                                                            ActivityStackSupervisor -> ActivityThread : scheduleLaunchActivity
+                                                                            ActivityThread ---> ActivityThread : handleLaunchActivity
+                                                                            activate ActivityThread
+                                                                                ActivityThread -> ActivityThread : performLaunchActivity
+                                                                                activate ActivityThread
+                                                                                    ActivityThread -> Instrumentation : newActivity
+                                                                                    ActivityThread -> Activity : attach
+                                                                                    ActivityThread -> Instrumentation : callActivityOnCreate
+                                                                                    ActivityThread -> Activity : performStart
+                                                                                    activate Activity
+                                                                                        Activity -> Instrumentation : callActivityOnStart
+                                                                                    deactivate Activity
+                                                                                    ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
+                                                                                deactivate ActivityThread
+                                                                                ActivityThread -> ActivityThread : handleResumeActivity
+                                                                                activate ActivityThread
+                                                                                    ActivityThread -> ActivityThread : performResumeActivity
+                                                                                    activate ActivityThread
+                                                                                        ActivityThread -> Activity : performResume
+                                                                                        activate Activity
+                                                                                            Activity -> Instrumentation : callActivityOnResume
+                                                                                        deactivate Activity
+                                                                                    deactivate ActivityThread
+                                                                                    ActivityThread ---> AMS : activityResumed
+                                                                                deactivate ActivityThread
+                                                                            deactivate ActivityThread
+                                                                        activate ActivityStackSupervisor
+                                                                        ActivityStackSupervisor -> AMS : startProcessLocked
+																	deactivate ActivityStackSupervisor
 																end
 																deactivate ActivityStack
 															deactivate ActivityStack
