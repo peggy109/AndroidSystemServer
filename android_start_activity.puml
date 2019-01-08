@@ -1,4 +1,5 @@
 @startuml
+title Android_Start_Activity
 participant ContextImpl
 participant Instrumentation
 participant Activity
@@ -23,12 +24,14 @@ activate AMS
 				ActivityStarter -> ActivityStarter : startActivityUnchecked
 				activate ActivityStarter
 					ActivityStarter -> ActivityStarter : resumeTargetStackIfNeeded
-					ActivityStarter -> ActivityStarter : resumeFocusedStackTopActivityLocked
-					activate ActivityStarter
+					ActivityStarter -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
+					activate ActivityStackSupervisor
 						ActivityStarter -> ActivityStack : resumeTopActivityUncheckedLocked
 						activate ActivityStack
 							ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
 							activate ActivityStack
+							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
+							    activate ActivityStackSupervisor
 								ActivityStack -> ActivityStack : startPausingLocked
 								activate ActivityStack
 									ActivityStack -> ActivityStack : mResumedActivity
@@ -76,35 +79,9 @@ activate AMS
 																	ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
 																	activate ActivityStackSupervisor
                                                                         ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
-                                                                        activate ActivityStackSupervisor
-                                                                            ActivityStackSupervisor -> ActivityThread : scheduleLaunchActivity
-                                                                            ActivityThread ---> ActivityThread : handleLaunchActivity
-                                                                            activate ActivityThread
-                                                                                ActivityThread -> ActivityThread : performLaunchActivity
-                                                                                activate ActivityThread
-                                                                                    ActivityThread -> Instrumentation : newActivity
-                                                                                    ActivityThread -> Activity : attach
-                                                                                    ActivityThread -> Instrumentation : callActivityOnCreate
-                                                                                    ActivityThread -> Activity : performStart
-                                                                                    activate Activity
-                                                                                        Activity -> Instrumentation : callActivityOnStart
-                                                                                    deactivate Activity
-                                                                                    ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
-                                                                                deactivate ActivityThread
-                                                                                ActivityThread -> ActivityThread : handleResumeActivity
-                                                                                activate ActivityThread
-                                                                                    ActivityThread -> ActivityThread : performResumeActivity
-                                                                                    activate ActivityThread
-                                                                                        ActivityThread -> Activity : performResume
-                                                                                        activate Activity
-                                                                                            Activity -> Instrumentation : callActivityOnResume
-                                                                                        deactivate Activity
-                                                                                    deactivate ActivityThread
-                                                                                    ActivityThread ---> AMS : activityResumed
-                                                                                deactivate ActivityThread
-                                                                            deactivate ActivityThread
-                                                                        activate ActivityStackSupervisor
+                                                                        note right : ...
                                                                         ActivityStackSupervisor -> AMS : startProcessLocked
+                                                                        note right : see Android_Start_Activity_2
 																	deactivate ActivityStackSupervisor
 																end
 																deactivate ActivityStack
@@ -129,9 +106,10 @@ activate AMS
 										note right of ActivityStack : resumeNext : true
 									end
 								deactivate ActivityStack
+								deactivate ActivityStackSupervisor
 							deactivate ActivityStack
 						deactivate ActivityStack
-					deactivate ActivityStarter
+					deactivate ActivityStackSupervisor
 					ActivityStarter -> ActivityStack : startActivityLocked
 				deactivate ActivityStarter
 				ActivityStarter -> ActivityStarter : postStartActivityUncheckedProcessing

@@ -1,0 +1,60 @@
+
+@startuml
+title Android_Start_Activity_2
+participant RuntimeInit
+participant ActivityThread
+participant AMS
+participant ActivityStackSupervisor
+participant ActivityThread.ApplicationThread
+participant Instrumentation
+participant Activity
+ActivityStackSuperVisor -> AMS : startProcessLocked
+AMS -> AMS : startProcessLocked
+AMS -> AMS : startProcessLocked
+AMS -> Process : start
+
+Process ---> RuntimeInit : zygoteInit
+note right : Ignore Process
+RuntimeInit -> RuntimeInit : applicationInit
+RuntimeInit -> RuntimeInit : invokeStaticMain
+activate RuntimeInit
+RuntimeInit ---> ActivityThread : main
+deactivate RuntimeInit
+ActivityThread -> ActivityThread : attach
+activate ActivityThread
+ActivityThread ---> AMS : attachApplication
+deactivate ActivityThread
+AMS -> AMS : attachApplicationLocked
+activate AMS
+AMS -> ActivityStackSupervisor : attachApplicationLocked
+ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+activate ActivityStackSupervisor
+ActivityStackSupervisor ---> ActivityThread.ApplicationThread : scheduleLaunchActivity
+deactivate ActivityStackSupervisor
+deactivate AMS
+ActivityThread.ApplicationThread ---> ActivityThread : handleLaunchActivity
+activate ActivityThread
+    ActivityThread -> ActivityThread : performLaunchActivity
+    activate ActivityThread
+        ActivityThread -> Instrumentation : newActivity
+        ActivityThread -> Activity : attach
+        ActivityThread -> Instrumentation : callActivityOnCreate
+        ActivityThread -> Activity : performStart
+        activate Activity
+            Activity -> Instrumentation : callActivityOnStart
+        deactivate Activity
+        ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
+    deactivate ActivityThread
+    ActivityThread -> ActivityThread : handleResumeActivity
+    activate ActivityThread
+        ActivityThread -> ActivityThread : performResumeActivity
+        activate ActivityThread
+            ActivityThread -> Activity : performResume
+            activate Activity
+                Activity -> Instrumentation : callActivityOnResume
+            deactivate Activity
+        deactivate ActivityThread
+        ActivityThread ---> AMS : activityResumed
+    deactivate ActivityThread
+deactivate ActivityThread
+@enduml
