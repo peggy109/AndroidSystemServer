@@ -118,9 +118,5 @@ activate AMS
 
 	deactivate AMS
 deactivate AMS
-|||
-[-> AMS : startActivity
-AMS -> ActivityStarter : startActivityMayWait
-ActivityStarter -> ActivityStarter : startActivityLocked
 
 @enduml

@@ -1,19 +1,30 @@
 
 @startuml
 title Android_Start_Activity_2
-participant RuntimeInit
-participant ActivityThread
-participant AMS
+box "system_server" #LightGreen
 participant ActivityStackSupervisor
+participant AMS
+participant Process
+end box
+box
+participant RuntimeInit
+end box
+box "App Process" #LightYellow
 participant ActivityThread.ApplicationThread
+participant ActivityThread
 participant Instrumentation
 participant Activity
-ActivityStackSuperVisor -> AMS : startProcessLocked
+end box
+
+ActivityStackSupervisor-> AMS : startProcessLocked
 AMS -> AMS : startProcessLocked
+activate AMS
 AMS -> AMS : startProcessLocked
 AMS -> Process : start
-
+activate AMS
 Process ---> RuntimeInit : zygoteInit
+deactivate AMS
+deactivate AMS
 note right : Ignore Process
 RuntimeInit -> RuntimeInit : applicationInit
 RuntimeInit -> RuntimeInit : invokeStaticMain
