@@ -1,15 +1,15 @@
 @startuml
 title Android_Start_Activity
-participant ContextImpl
-participant Instrumentation
-participant Activity
-participant ActivityThread
-participant ActivityThread.ApplicationThread
 participant ActivityManagerService as AMS
 participant ActivityStarter
 participant ActivityStack
 participant ActivityStackSupervisor
 participant ActivityStack.H
+participant ContextImpl
+participant Instrumentation
+participant Activity
+participant ActivityThread
+participant ActivityThread.ApplicationThread
 
 [-> ContextImpl : startActivity
 ContextImpl -> Instrumentation : execStartActivity
@@ -26,18 +26,29 @@ activate AMS
 					ActivityStarter -> ActivityStarter : resumeTargetStackIfNeeded
 					ActivityStarter -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
 					activate ActivityStackSupervisor
-						ActivityStarter -> ActivityStack : resumeTopActivityUncheckedLocked
+						ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
 						activate ActivityStack
 							ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
 							activate ActivityStack
 							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
 							    activate ActivityStackSupervisor
-								ActivityStack -> ActivityStack : startPausingLocked
+								ActivityStackSupervisor -> ActivityStack : startPausingLocked
 								activate ActivityStack
 									ActivityStack -> ActivityStack : mResumedActivity
 									ActivityStack -> ActivityStack : mPausingActivity
 									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
-									activate ActivityThread.ApplicationThread
+								deactivate ActivityStack
+								deactivate ActivityStackSupervisor
+							deactivate ActivityStack
+						deactivate ActivityStack
+					deactivate ActivityStackSupervisor
+					ActivityStarter -> ActivityStack : startActivityLocked
+				deactivate ActivityStarter
+				ActivityStarter -> ActivityStarter : postStartActivityUncheckedProcessing
+			deactivate ActivityStarter
+		deactivate ActivityStarter
+	deactivate AMS
+deactivate AMS
 										ActivityThread.ApplicationThread --> ActivityThread : handlePauseActivity
 										activate ActivityThread
 											ActivityThread -> ActivityThread : performPauseActivity
@@ -51,7 +62,8 @@ activate AMS
 													ActivityThread -> Instrumentation : callActivityOnPause
 												deactivate ActivityThread
 											deactivate ActivityThread
-											ActivityThread ---> AMS : activityPaused 
+											ActivityThread ---> AMS : activityPaused
+										deactivate ActivityThread
 											activate AMS
 												AMS -> ActivityStack : activityPausedLocked
 												activate ActivityStack
@@ -75,17 +87,21 @@ activate AMS
 																		deactivate ActivityThread
 																		ActivityThread -> AMS : activityResumed
 																	deactivate ActivityThread
-																else bingo!
+																else bingo! next.app == null || next.app.thread == null
 																	ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
 																	activate ActivityStackSupervisor
-                                                                        ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
-                                                                        note right : ...
-                                                                        ActivityStackSupervisor -> AMS : startProcessLocked
-                                                                        note right : see Android_Start_Activity_2
+																		ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+																		note right : ...
+																		ActivityStackSupervisor -> AMS : startProcessLocked
+																		note right : see Android_Start_Activity_2
 																	deactivate ActivityStackSupervisor
 																end
 																deactivate ActivityStack
 															deactivate ActivityStack
+															ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
+															ActivityStackSupervisor -> ActivityStack : ensureActivitiesVisibleLocked
+															ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
+															ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
 														deactivate ActivityStackSupervisor
 														ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
 														activate ActivityStackSupervisor
@@ -94,8 +110,8 @@ activate AMS
 													deactivate ActivityStack
 												deactivate ActivityStack
 											deactivate AMS
-										deactivate ActivityThread
-									deactivate ActivityThread.ApplicationThread
+
+
 									alt
 										ActivityStack -> ActivityStack : completePauseLocked
 										note right of ActivityStack : resumeNext : false
@@ -105,18 +121,15 @@ activate AMS
 										ActivityStack -> ActivityStack : completePauseLocked
 										note right of ActivityStack : resumeNext : true
 									end
-								deactivate ActivityStack
-								deactivate ActivityStackSupervisor
-							deactivate ActivityStack
-						deactivate ActivityStack
-					deactivate ActivityStackSupervisor
-					ActivityStarter -> ActivityStack : startActivityLocked
-				deactivate ActivityStarter
-				ActivityStarter -> ActivityStarter : postStartActivityUncheckedProcessing
-			deactivate ActivityStarter
-		deactivate ActivityStarter
 
-	deactivate AMS
-deactivate AMS
+
+
+
+
+
+
+
+
+
 
 @enduml
