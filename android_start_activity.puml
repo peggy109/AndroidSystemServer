@@ -1,23 +1,74 @@
 @startuml
 title Android_Start_Activity
+box "system_server" #LightGreen
 participant ActivityManagerService as AMS
 participant ActivityStarter
 participant ActivityStack
 participant ActivityStackSupervisor
 participant ActivityStack.H
-participant ContextImpl
+end box
+box "App Process" #LightYellow
+participant ActivityThread.ApplicationThread
+participant ActivityThread
 participant Instrumentation
 participant Activity
-participant ActivityThread
-participant ActivityThread.ApplicationThread
-
+end box
+participant ContextImpl
+alt Start App2 From App1
+[---> AMS : startActivityAsUser
+note right : resultTo == null
+else Start App2 From App1 Launcher
 [-> ContextImpl : startActivity
 ContextImpl -> Instrumentation : execStartActivity
 Instrumentation ---> AMS : startActivity
 activate AMS
 	AMS -> AMS : startActivityAsUser
+	note right : resultTo == App1 Launcher
+end
+note over AMS
+startActivityMayWait
+callingUid = -1,
+intent = Intent {
+    act=android.intent.action.MAIN
+    cat=[android.intent.category.LAUNCHER]
+    flg=0x10000000
+    cmp=com.freeme.calculator/.Calculator },
+resolvedType = null,
+resultWho = null,
+startFlags = 0H,
+profilerInfo = null,
+outResult = null,
+config = null,
+ignoreTargetSecurity = false,
+userId = 0,
+iContainer = null,
+inTask = null
+end note
+alt
+note right
+end note
+else
+end
 	activate AMS
+	alt Start App2 From App1
 		AMS -> ActivityStarter : startActivityMayWait
+		note right
+		caller = null,
+        callingPackage = null,
+        resultTo = null,
+        requestCode=0,
+        bOptions = null,
+		end note
+	else Start App2 From App1 Launcher
+		AMS -> ActivityStarter : startActivityMayWait
+		note right
+		caller = android.app.ApplicationThreadProxy@5f67469,
+        callingPackage = com.freeme.freemelite.odm,
+        resultTo = Token{63ce807 ActivityRecord{a8c9e46 u0 com.freeme.freemelite.odm/com.freeme.launcher.Launcher t66}},
+        requestCode=-1,
+        bOptions = Bundle[...],
+		end note
+	end
 		activate ActivityStarter
 			ActivityStarter -> ActivityStarter : startActivityLocked
 			activate ActivityStarter
@@ -29,16 +80,31 @@ activate AMS
 						ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
 						activate ActivityStack
 							ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+							note right
+							    prev == App2\ndontWaitForPause == false
+							end note
 							activate ActivityStack
+							alt Start App2 From App1
+							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
+							    ActivityStack -> ActivityStack : startPausingLocked
+							    note right : resuming = App2\ndontWait = false
+								activate ActivityStack
+									ActivityStack -> ActivityStack : mResumedActivity
+									ActivityStack -> ActivityStack : mPausingActivity
+									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
+								deactivate ActivityStack
+							else Start App2 From App1 Launcher
 							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
 							    activate ActivityStackSupervisor
 								ActivityStackSupervisor -> ActivityStack : startPausingLocked
+								note right : resuming = App2\ndontWait = false
 								activate ActivityStack
 									ActivityStack -> ActivityStack : mResumedActivity
 									ActivityStack -> ActivityStack : mPausingActivity
 									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
 								deactivate ActivityStack
 								deactivate ActivityStackSupervisor
+							end
 							deactivate ActivityStack
 						deactivate ActivityStack
 					deactivate ActivityStackSupervisor
@@ -49,87 +115,80 @@ activate AMS
 		deactivate ActivityStarter
 	deactivate AMS
 deactivate AMS
-										ActivityThread.ApplicationThread --> ActivityThread : handlePauseActivity
-										activate ActivityThread
-											ActivityThread -> ActivityThread : performPauseActivity
-											activate ActivityThread
-												ActivityThread -> ActivityThread : callCallActivityOnSaveInstanceState
-												activate ActivityThread
-													ActivityThread -> Instrumentation : callActivityOnSaveInstanceState
-												deactivate ActivityThread
-												ActivityThread -> ActivityThread : performPauseActivityIfNeeded
-												activate ActivityThread
-													ActivityThread -> Instrumentation : callActivityOnPause
-												deactivate ActivityThread
-											deactivate ActivityThread
-											ActivityThread ---> AMS : activityPaused
-										deactivate ActivityThread
-											activate AMS
-												AMS -> ActivityStack : activityPausedLocked
-												activate ActivityStack
-													ActivityStack -> ActivityStack.H : removeMessage(PAUSE_TIMEOUT_MSG)
-													ActivityStack -> ActivityStack : completePauseLocked
-													note right of ActivityStack : resumeNext : true
-													activate ActivityStack
-														ActivityStack -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
-														activate ActivityStackSupervisor
-															ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
-															activate ActivityStack
-																ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
-																activate ActivityStack
-																alt
-																	ActivityStack ---> ActivityThread.ApplicationThread : scheduleResumeActivity
-																	ActivityThread.ApplicationThread ---> ActivityThread :handleResumeActivity
-																	activate ActivityThread
-																		ActivityThread -> ActivityThread : performResumeActivity
-																		activate ActivityThread
-																			ActivityThread -> Activity : performResume
-																		deactivate ActivityThread
-																		ActivityThread -> AMS : activityResumed
-																	deactivate ActivityThread
-																else bingo! next.app == null || next.app.thread == null
-																	ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
-																	activate ActivityStackSupervisor
-																		ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
-																		note right : ...
-																		ActivityStackSupervisor -> AMS : startProcessLocked
-																		note right : see Android_Start_Activity_2
-																	deactivate ActivityStackSupervisor
-																end
-																deactivate ActivityStack
-															deactivate ActivityStack
-															ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
-															ActivityStackSupervisor -> ActivityStack : ensureActivitiesVisibleLocked
-															ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
-															ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
-														deactivate ActivityStackSupervisor
-														ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
-														activate ActivityStackSupervisor
-														ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
-														deactivate ActivityStackSupervisor
-													deactivate ActivityStack
-												deactivate ActivityStack
-											deactivate AMS
-
-
-									alt
-										ActivityStack -> ActivityStack : completePauseLocked
-										note right of ActivityStack : resumeNext : false
-									else
-										ActivityStack ---> ActivityStack.H : handleMessage(PAUSE_TIMEOUT_MSG)
-										ActivityStack.H -> ActivityStack : activityPausedLocked
-										ActivityStack -> ActivityStack : completePauseLocked
-										note right of ActivityStack : resumeNext : true
-									end
-
-
-
-
-
-
-
-
-
-
+ActivityThread.ApplicationThread --> ActivityThread : handlePauseActivity
+activate ActivityThread
+	ActivityThread -> ActivityThread : performPauseActivity
+	activate ActivityThread
+		ActivityThread -> ActivityThread : callCallActivityOnSaveInstanceState
+		activate ActivityThread
+			ActivityThread -> Instrumentation : callActivityOnSaveInstanceState
+		deactivate ActivityThread
+		ActivityThread -> ActivityThread : performPauseActivityIfNeeded
+		activate ActivityThread
+			ActivityThread -> Instrumentation : callActivityOnPause
+		deactivate ActivityThread
+	deactivate ActivityThread
+	ActivityThread ---> AMS : activityPaused
+deactivate ActivityThread
+activate AMS
+	AMS -> ActivityStack : activityPausedLocked
+	activate ActivityStack
+		ActivityStack -> ActivityStack.H : removeMessage(PAUSE_TIMEOUT_MSG)
+		ActivityStack -> ActivityStack : completePauseLocked
+		note right of ActivityStack : resumeNext : true
+		activate ActivityStack
+			ActivityStack -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
+			activate ActivityStackSupervisor
+				ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
+				activate ActivityStack
+					ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+					note right : prev == App1\ndontWaitForPause == false
+					activate ActivityStack
+					alt
+						ActivityStack ---> ActivityThread.ApplicationThread : scheduleResumeActivity
+						ActivityThread.ApplicationThread ---> ActivityThread :handleResumeActivity
+						activate ActivityThread
+							ActivityThread -> ActivityThread : performResumeActivity
+							activate ActivityThread
+								ActivityThread -> Activity : performResume
+							deactivate ActivityThread
+							ActivityThread -> AMS : activityResumed
+						deactivate ActivityThread
+					else bingo! next.app == null(true) || next.app.thread == null
+						ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
+						note right : r == App2\nandResume == true\nProcessRecord = null
+						activate ActivityStackSupervisor
+							ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+							note right : ...
+							ActivityStackSupervisor -> AMS : startProcessLocked
+							note right : see Android_Start_Activity_2
+						deactivate ActivityStackSupervisor
+					end
+					deactivate ActivityStack
+				deactivate ActivityStack
+			deactivate ActivityStackSupervisor
+				ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
+				activate ActivityStackSupervisor
+				ActivityStackSupervisor -> ActivityStack : ensureActivitiesVisibleLocked
+				activate ActivityStack
+				ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
+				activate ActivityStack
+				ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
+				note right : r == App2\nandResume == true\nProcessRecord = null\nsee Android_Start_Activity_2
+				deactivate ActivityStack
+				deactivate ActivityStack
+				deactivate ActivityStackSupervisor
+		deactivate ActivityStack
+	deactivate ActivityStack
+deactivate AMS
+alt
+	ActivityStack -> ActivityStack : completePauseLocked
+	note right of ActivityStack : resumeNext : false
+else
+	ActivityStack ---> ActivityStack.H : handleMessage(PAUSE_TIMEOUT_MSG)
+	ActivityStack.H -> ActivityStack : activityPausedLocked
+	ActivityStack -> ActivityStack : completePauseLocked
+	note right of ActivityStack : resumeNext : true
+end
 
 @enduml
