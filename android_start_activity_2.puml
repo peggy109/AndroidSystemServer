@@ -11,6 +11,7 @@ participant RuntimeInit
 end box
 box "App Process" #LightYellow
 participant ActivityThread.ApplicationThread
+participant ActivityThread.H
 participant ActivityThread
 participant Instrumentation
 participant Activity
@@ -43,7 +44,8 @@ activate ActivityStackSupervisor
 ActivityStackSupervisor ---> ActivityThread.ApplicationThread : scheduleLaunchActivity
 deactivate ActivityStackSupervisor
 deactivate AMS
-ActivityThread.ApplicationThread ---> ActivityThread : handleLaunchActivity
+ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
+ActivityThread.H -> ActivityThread : handleLaunchActivity
 activate ActivityThread
     ActivityThread -> ActivityThread : performLaunchActivity
     activate ActivityThread
