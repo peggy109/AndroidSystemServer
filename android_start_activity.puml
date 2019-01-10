@@ -9,12 +9,13 @@ participant ActivityStack.H
 end box
 box "App Process" #LightYellow
 participant ActivityThread.ApplicationThread
+participant ActivityThread.H
 participant ActivityThread
 participant Instrumentation
 participant Activity
 end box
 participant ContextImpl
-alt Start App2 From App1
+alt #transparent "Start App2 From App1"
 [---> AMS : startActivityAsUser
 note right : resultTo == null
 else Start App2 From App1 Launcher
@@ -44,13 +45,13 @@ userId = 0,
 iContainer = null,
 inTask = null
 end note
-alt
+alt #transparent
 note right
 end note
 else
 end
 	activate AMS
-	alt Start App2 From App1
+	alt #transparent "Start App2 From App1"
 		AMS -> ActivityStarter : startActivityMayWait
 		note right
 		caller = null,
@@ -84,7 +85,7 @@ end
 							    prev == App2\ndontWaitForPause == false
 							end note
 							activate ActivityStack
-							alt Start App2 From App1
+							alt #transparent "Start App2 From App1"
 							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
 							    ActivityStack -> ActivityStack : startPausingLocked
 							    note right : resuming = App2\ndontWait = false
@@ -115,7 +116,9 @@ end
 		deactivate ActivityStarter
 	deactivate AMS
 deactivate AMS
-ActivityThread.ApplicationThread --> ActivityThread : handlePauseActivity
+ActivityThread.ApplicationThread --> ActivityThread.H : handleMessage
+note right : (PAUSE_ACTIVITY_FINISHING|PAUSE_ACTIVITY)
+ActivityThread.H -> ActivityThread : handlePauseActivity
 activate ActivityThread
 	ActivityThread -> ActivityThread : performPauseActivity
 	activate ActivityThread
@@ -144,9 +147,11 @@ activate AMS
 					ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
 					note right : prev == App1\ndontWaitForPause == false
 					activate ActivityStack
-					alt
+					alt #transparent
 						ActivityStack ---> ActivityThread.ApplicationThread : scheduleResumeActivity
-						ActivityThread.ApplicationThread ---> ActivityThread :handleResumeActivity
+						ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
+						note right : (RESUME_ACTIVITY)
+						ActivityThread.H -> ActivityThread :handleResumeActivity
 						activate ActivityThread
 							ActivityThread -> ActivityThread : performResumeActivity
 							activate ActivityThread
@@ -181,11 +186,12 @@ activate AMS
 		deactivate ActivityStack
 	deactivate ActivityStack
 deactivate AMS
-alt
+alt #transparent
 	ActivityStack -> ActivityStack : completePauseLocked
 	note right of ActivityStack : resumeNext : false
 else
-	ActivityStack ---> ActivityStack.H : handleMessage(PAUSE_TIMEOUT_MSG)
+	ActivityStack ---> ActivityStack.H : handleMessage
+	note right : (PAUSE_TIMEOUT_MSG)
 	ActivityStack.H -> ActivityStack : activityPausedLocked
 	ActivityStack -> ActivityStack : completePauseLocked
 	note right of ActivityStack : resumeNext : true

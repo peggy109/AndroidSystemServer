@@ -45,6 +45,7 @@ ActivityStackSupervisor ---> ActivityThread.ApplicationThread : scheduleLaunchAc
 deactivate ActivityStackSupervisor
 deactivate AMS
 ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
+note right : (LAUNCH_ACTIVITY)
 ActivityThread.H -> ActivityThread : handleLaunchActivity
 activate ActivityThread
     ActivityThread -> ActivityThread : performLaunchActivity
