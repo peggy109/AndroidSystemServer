@@ -17,58 +17,94 @@ participant Instrumentation
 participant Activity
 end box
 
-ActivityStackSupervisor-> AMS : startProcessLocked
-AMS -> AMS : startProcessLocked
+ActivityStackSupervisor-> AMS : startProcessLocked1
+AMS -> AMS : startProcessLocked2
+note right
+    processName = <App2 pkg>,
+    info = ApplicationInfo{1c2a399 <App2 pkg>},
+    knownToBeDead = true,
+    intentFlags = 0H,
+    hostingType = activity,
+    hostingName = ComponentInfo{<component App2>},
+    allowWhileBooting=false,
+    isolated = false,
+    isolatedUid = 0,
+    keepIfLarge = true,
+    abiOverride = null,
+    entryPoint=null,
+    entryPointArgs = null,
+    crashHandler = null
+end note
 activate AMS
-AMS -> AMS : startProcessLocked
-AMS -> Process : start
-activate AMS
-Process ---> RuntimeInit : zygoteInit
-deactivate AMS
-deactivate AMS
-note right : Ignore Process
-RuntimeInit -> RuntimeInit : applicationInit
-RuntimeInit -> RuntimeInit : invokeStaticMain
-activate RuntimeInit
-RuntimeInit ---> ActivityThread : main
-deactivate RuntimeInit
-ActivityThread -> ActivityThread : attach
-activate ActivityThread
-ActivityThread ---> AMS : attachApplication
-deactivate ActivityThread
-AMS -> AMS : attachApplicationLocked
-activate AMS
-AMS -> ActivityStackSupervisor : attachApplicationLocked
-ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
-activate ActivityStackSupervisor
-ActivityStackSupervisor ---> ActivityThread.ApplicationThread : scheduleLaunchActivity
-deactivate ActivityStackSupervisor
-deactivate AMS
-ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
-note right : (LAUNCH_ACTIVITY)
-ActivityThread.H -> ActivityThread : handleLaunchActivity
-activate ActivityThread
-    ActivityThread -> ActivityThread : performLaunchActivity
+alt #transparent second time run it,ProcessRecord app !=null
+    return true
+else first time run it,ProcessRecord app ==null
+    AMS -> AMS : newProcessRecordLocked
+    AMS -> AMS : startProcessLocked3
+    AMS -> Process : start
+    activate AMS
+    Process ---> RuntimeInit : zygoteInit
+    deactivate AMS
+    deactivate AMS
+    note right : Ignore Process
+    RuntimeInit -> RuntimeInit : applicationInit
+    RuntimeInit -> RuntimeInit : invokeStaticMain
+    activate RuntimeInit
+    RuntimeInit ---> ActivityThread : main
+    deactivate RuntimeInit
+    ActivityThread -> ActivityThread : attach
     activate ActivityThread
-        ActivityThread -> Instrumentation : newActivity
-        ActivityThread -> Activity : attach
-        ActivityThread -> Instrumentation : callActivityOnCreate
-        ActivityThread -> Activity : performStart
-        activate Activity
-            Activity -> Instrumentation : callActivityOnStart
-        deactivate Activity
-        ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
+    ActivityThread ---> AMS : attachApplication
     deactivate ActivityThread
-    ActivityThread -> ActivityThread : handleResumeActivity
+    AMS -> AMS : attachApplicationLocked
+    activate AMS
+    AMS -> ActivityThread.ApplicationThread : bindApplication
+    ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
+    ActivityThread.H -> ActivityThread : handleBindApplication
+    ActivityThread -> LoadedApk : makeApplication
+    LoadedApk -> Instrumentation : newApplication
+    Instrumentation -> Instrumentation : newApplication
+    activate Instrumentation
+    Instrumentation -> Process :attach
+    deactivate Instrumentation
+    AMS -> ActivityStackSupervisor : attachApplicationLocked
+    alt #transparent "stack.topRunningActivityLocked().processName == App2"
+    ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+    activate ActivityStackSupervisor
+    ActivityStackSupervisor ---> ActivityThread.ApplicationThread : scheduleLaunchActivity
+    deactivate ActivityStackSupervisor
+
+    deactivate AMS
+    ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
+    note right : (LAUNCH_ACTIVITY)
+    ActivityThread.H -> ActivityThread : handleLaunchActivity
     activate ActivityThread
-        ActivityThread -> ActivityThread : performResumeActivity
+        ActivityThread -> ActivityThread : performLaunchActivity
         activate ActivityThread
-            ActivityThread -> Activity : performResume
+            ActivityThread -> Instrumentation : newActivity
+            ActivityThread -> Activity : attach
+            ActivityThread -> Instrumentation : callActivityOnCreate
+            ActivityThread -> Activity : performStart
             activate Activity
-                Activity -> Instrumentation : callActivityOnResume
+                Activity -> Instrumentation : callActivityOnStart
             deactivate Activity
+            ActivityThread -> Instrumentation : callActivityOnRestoreInstanceState
         deactivate ActivityThread
-        ActivityThread ---> AMS : activityResumed
+        ActivityThread -> ActivityThread : handleResumeActivity
+        activate ActivityThread
+            ActivityThread -> ActivityThread : performResumeActivity
+            activate ActivityThread
+                ActivityThread -> Activity : performResume
+                activate Activity
+                    Activity -> Instrumentation : callActivityOnResume
+                deactivate Activity
+            deactivate ActivityThread
+            ActivityThread ---> AMS : activityResumed
+        deactivate ActivityThread
     deactivate ActivityThread
-deactivate ActivityThread
+    else va start activity
+    ActivityStackSupervisor -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
+    end
+
+end
 @enduml

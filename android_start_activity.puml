@@ -20,6 +20,24 @@ alt #transparent "Start App2 From App1"
 note right : resultTo == null
 else Start App2 From App1 Launcher
 [-> ContextImpl : startActivity
+note over AMS
+    caller = ApplicationThreadProxy@xxx,
+    callingPackage = com.<App1>,
+    intent = Intent {
+    act=android.intent.action.MAIN
+    cat=[android.intent.category.LAUNCHER]
+    flg=0x10200000
+    cmp=com.freeme.calculator/.Calculator (has extras)
+    },
+    resolvedType = null,
+    resultTo = Token{157d900
+    ActivityRecord{9534383 u0 <App1 pkg>/<App1 class> t5}},
+    resultWho = null,
+    requestCode=-1,
+    startFlags0H,
+    profilerInfo = null,
+    bOptions = Bundle[mParcelledData.dataSize=728]
+end note
 ContextImpl -> Instrumentation : execStartActivity
 Instrumentation ---> AMS : startActivity
 activate AMS
@@ -27,23 +45,19 @@ activate AMS
 	note right : resultTo == App1 Launcher
 end
 note over AMS
-startActivityMayWait
-callingUid = -1,
-intent = Intent {
-    act=android.intent.action.MAIN
-    cat=[android.intent.category.LAUNCHER]
-    flg=0x10000000
-    cmp=com.freeme.calculator/.Calculator },
-resolvedType = null,
-resultWho = null,
-startFlags = 0H,
-profilerInfo = null,
-outResult = null,
-config = null,
-ignoreTargetSecurity = false,
-userId = 0,
-iContainer = null,
-inTask = null
+    startActivityMayWait
+    callingUid = -1,
+    resolvedType = null,
+    resultWho = null,
+    startFlags = 0H,
+    profilerInfo = null,
+    outResult = null,
+    config = null,
+    ignoreTargetSecurity = false,
+    userId = 0,
+    iContainer = null,
+    inTask = null
+
 end note
 alt #transparent
 note right
@@ -54,61 +68,105 @@ end
 	alt #transparent "Start App2 From App1"
 		AMS -> ActivityStarter : startActivityMayWait
 		note right
-		caller = null,
-        callingPackage = null,
-        resultTo = null,
-        requestCode=0,
-        bOptions = null,
+		    intent = Intent {
+                act=android.intent.action.MAIN
+                cat=[android.intent.category.LAUNCHER]
+                flg=0x10000000
+                cmp=com.freeme.calculator/.Calculator },
+            caller = null,
+            callingPackage = null,
+            resultTo = null,
+            requestCode=0,
+            bOptions = null,
 		end note
 	else Start App2 From App1 Launcher
 		AMS -> ActivityStarter : startActivityMayWait
 		note right
-		caller = android.app.ApplicationThreadProxy@5f67469,
-        callingPackage = com.freeme.freemelite.odm,
-        resultTo = Token{63ce807 ActivityRecord{a8c9e46 u0 com.freeme.freemelite.odm/com.freeme.launcher.Launcher t66}},
-        requestCode=-1,
-        bOptions = Bundle[...],
+            intent = Intent {
+                act=android.intent.action.MAIN
+                cat=[android.intent.category.LAUNCHER]
+                flg=0x10200000
+                cmp=com.freeme.calculator/.Calculator (has extras) },
+            caller = ApplicationThreadProxy@xxx,
+            callingPackage = <App1>,
+            resultTo = Token{xxx ActivityRecord{xxx u0 <App1 pkg>/<App1 class> t66}},
+            requestCode=-1,
+            bOptions = Bundle[...],
 		end note
 	end
 		activate ActivityStarter
 			ActivityStarter -> ActivityStarter : startActivityLocked
 			activate ActivityStarter
+			    ActivityStarter -> ActivityStarter : callingUid <- caller
+			    ActivityStarter -> ActivityStarter : new ActivityRecord
+			    note over ActivityStarter
+			    r = ActivityRecord{xxx u0 <App2 component> t-1},
+			    sourceRecord = ActivityRecord{9534383 u0 <App1 component> t5},
+			    startFlags = 0H,doResume = true,
+			    options = ActivityOptions(71566744),
+			    mPackageName=null, mAnimationType=11,
+			    mStartX=561, mStartY=959, mWidth=120, mHeight=120,
+			    inTask = null
+			    end note
 				ActivityStarter -> ActivityStarter : startActivityUnchecked
 				activate ActivityStarter
 					ActivityStarter -> ActivityStarter : resumeTargetStackIfNeeded
-					ActivityStarter -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
-					activate ActivityStackSupervisor
-						ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
-						activate ActivityStack
-							ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
-							note right
-							    prev == App2\ndontWaitForPause == false
-							end note
-							activate ActivityStack
-							alt #transparent "Start App2 From App1"
-							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
-							    ActivityStack -> ActivityStack : startPausingLocked
-							    note right : resuming = App2\ndontWait = false
-								activate ActivityStack
-									ActivityStack -> ActivityStack : mResumedActivity
-									ActivityStack -> ActivityStack : mPausingActivity
-									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
-								deactivate ActivityStack
-							else Start App2 From App1 Launcher
-							    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
-							    activate ActivityStackSupervisor
-								ActivityStackSupervisor -> ActivityStack : startPausingLocked
-								note right : resuming = App2\ndontWait = false
-								activate ActivityStack
-									ActivityStack -> ActivityStack : mResumedActivity
-									ActivityStack -> ActivityStack : mPausingActivity
-									ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
-								deactivate ActivityStack
-								deactivate ActivityStackSupervisor
-							end
-							deactivate ActivityStack
-						deactivate ActivityStack
-					deactivate ActivityStackSupervisor
+					alt mDoResume && mTargetStack.isFocusable() bingo
+                        ActivityStarter -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
+                        activate ActivityStackSupervisor
+                            ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
+                            activate ActivityStack
+                                ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+                                note right
+                                    prev == App2
+                                    dontWaitForPause == false
+                                end note
+                                activate ActivityStack
+                                    ActivityStack -> ActivityStack : next = App2
+                                alt #transparent "Start App2 From App1"
+                                    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
+                                    ActivityStackSupervisor -> ActivityStack : return false
+                                    note right
+                                        userLeaving = true,
+                                        resuming = App2,
+                                        dontWait = false
+                                    end note
+                                    ActivityStack -> ActivityStack : startPausingLocked = true
+                                    note right
+                                       resuming = App2
+                                       dontWait = false
+                                    end note
+                                    activate ActivityStack
+                                        ActivityStack -> ActivityStack : mResumedActivity = null
+                                        ActivityStack -> ActivityStack : mPausingActivity = App1
+                                        ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
+                                    ActivityStack -> ActivityStack : return true
+                                    deactivate ActivityStack
+                                else Start App2 From App1 Launcher
+                                    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
+                                    note right
+                                        userLeaving = true,
+                                        resuming = App2,
+                                        dontWait = false
+                                    end note
+                                    activate ActivityStackSupervisor
+                                    ActivityStackSupervisor -> ActivityStack : startPausingLocked
+                                    note right
+                                       resuming = App2
+                                       dontWait = false
+                                    end note
+                                    activate ActivityStack
+                                        ActivityStack -> ActivityStack : mResumedActivity = null
+                                        ActivityStack -> ActivityStack : mPausingActivity = App1
+                                        ActivityStack --> ActivityThread.ApplicationThread : schedulePauseActivity
+                                    deactivate ActivityStack
+                                    deactivate ActivityStackSupervisor
+                                end
+                                    ActivityStack -> ActivityStack : return true
+                                deactivate ActivityStack
+                            deactivate ActivityStack
+                        deactivate ActivityStackSupervisor
+                    end
 					ActivityStarter -> ActivityStack : startActivityLocked
 				deactivate ActivityStarter
 				ActivityStarter -> ActivityStarter : postStartActivityUncheckedProcessing
@@ -140,6 +198,7 @@ activate AMS
 		ActivityStack -> ActivityStack : completePauseLocked
 		note right of ActivityStack : resumeNext : true
 		activate ActivityStack
+		    ActivityStack -> ActivityStack :prev = mPausingActivity = App1
 			ActivityStack -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
 			activate ActivityStackSupervisor
 				ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
@@ -147,6 +206,8 @@ activate AMS
 					ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
 					note right : prev == App1\ndontWaitForPause == false
 					activate ActivityStack
+					    ActivityStack -> ActivityStackSupervisor : pauseBackStacks
+					    ActivityStackSupervisor -> ActivityStack : false
 					alt #transparent
 						ActivityStack ---> ActivityThread.ApplicationThread : scheduleResumeActivity
 						ActivityThread.ApplicationThread ---> ActivityThread.H : handleMessage
@@ -160,29 +221,52 @@ activate AMS
 							ActivityThread -> AMS : activityResumed
 						deactivate ActivityThread
 					else bingo! next.app == null(true) || next.app.thread == null
+					    note over ActivityStack : next.app == null
 						ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
-						note right : r == App2\nandResume == true\nProcessRecord = null
+						note right
+						    r == App2
+						    andResume == true
+						    ProcessRecord app = null
+						end note
 						activate ActivityStackSupervisor
+						alt  va start activity \nfor process already zygoted
 							ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
 							note right : ...
+						end
 							ActivityStackSupervisor -> AMS : startProcessLocked
-							note right : see Android_Start_Activity_2
+							note right
+							    see Android_Start_Activity_2
+							    will zygote
+							end note
 						deactivate ActivityStackSupervisor
 					end
 					deactivate ActivityStack
 				deactivate ActivityStack
 			deactivate ActivityStackSupervisor
-				ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
-				activate ActivityStackSupervisor
-				ActivityStackSupervisor -> ActivityStack : ensureActivitiesVisibleLocked
-				activate ActivityStack
-				ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
-				activate ActivityStack
-				ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
-				note right : r == App2\nandResume == true\nProcessRecord = null\nsee Android_Start_Activity_2
-				deactivate ActivityStack
-				deactivate ActivityStack
-				deactivate ActivityStackSupervisor
+			ActivityStack -> ActivityStackSupervisor : ensureActivitiesVisibleLocked
+			note right
+			    starting = null,
+			    configChanges = 0,
+			    preserveWindows = false
+			end note
+			activate ActivityStackSupervisor
+			ActivityStackSupervisor -> ActivityStack : ensureActivitiesVisibleLocked
+			activate ActivityStack
+			ActivityStack -> ActivityStack : makeVisibleAndRestartIfNeeded
+			activate ActivityStack
+			ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
+			note right
+			    see Android_Start_Activity_2
+			    wont zygote
+                r == App2
+                andResume == true
+                ProcessRecord app != null
+                ProcessRecord app.thread == null
+			end note
+			deactivate ActivityStack
+			deactivate ActivityStack
+			deactivate ActivityStackSupervisor
+			ActivityStack -> ActivityStack : mPausingActivity = null
 		deactivate ActivityStack
 	deactivate ActivityStack
 deactivate AMS
